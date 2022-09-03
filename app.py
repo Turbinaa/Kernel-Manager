@@ -5,6 +5,9 @@ from bs4 import BeautifulSoup
 import os, sys
 from genericpath import exists
 
+if sys.platform != "linux":
+    exit()
+
 URL="https://kernel.org"
 WORKING_DIR= f"{os.getenv('HOME')}/.KernelManager/"
 TODAY = date.today()
@@ -93,12 +96,10 @@ def check_input() -> int:
 
 
 def main():
-    if sys.platform == "linux":
-        check_path()
-        get_kernel_page_source()
-        ask_version()
-    else:
-        return
+    check_path()
+    get_kernel_page_source()
+    ask_version()
+
     
 if __name__ == '__main__':
     main()
