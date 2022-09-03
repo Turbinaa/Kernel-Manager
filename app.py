@@ -1,5 +1,6 @@
 import json
 import requests
+from clint.textui import progress
 from datetime import date
 from bs4 import BeautifulSoup
 import os, sys
@@ -9,7 +10,7 @@ if sys.platform != "linux":
     exit()
 
 URL="https://kernel.org"
-WORKING_DIR= f"{os.getenv('HOME')}/.KernelManager/"
+WORKING_DIR= f"{os.getenv('HOME')}/.KernelManager"
 TODAY = date.today()
 
 class Kernel():
@@ -20,6 +21,8 @@ class Kernel():
     pgp: str
 
 def check_path():
+    if not exists(f"{WORKING_DIR}"):
+            os.mkdir(f"{WORKING_DIR}")
     if not exists(f"{WORKING_DIR}/downloads/"):
             os.mkdir(f"{WORKING_DIR}/downloads/")
     if not exists(f"{WORKING_DIR}/cache/"):
@@ -58,7 +61,6 @@ def get_kernel_page_source():
             kernel.pgp = release.find_all('a', href=True)[1]['href']
         kernels.append(kernel)
 def get_json():
-    global jsn
     list = '{"kernels":[]}'
     data = json.loads(list)
     for kernel in kernels:
@@ -69,11 +71,12 @@ def get_json():
         elif kernel.branch == 'mainline' or kernel.pgp == None:
             data["kernels"].append({"branch": kernel.branch, "version": kernel.version, "release_date": kernel.date, "tarball": kernel.tarball, "PGP": None})
     json.dumps(data, indent=4)
-    jsn = data
+    return data
 
 def ask_version():
     print("Available versions: ")
-    data = jsn["kernels"]
+    json = get_json()
+    data = json["kernels"]
     version_list = []
     i = 0
     for element in data:
@@ -85,15 +88,20 @@ def ask_version():
     download_kernel(version_list[version-1])
 
 def download_kernel(url: str):
-    response = requests.get(url)
+    response = requests.get(url, stream=True)
     name = url.split("/")[-1]
-    open(f"{WORKING_DIR}/downloads/{name}", 'wb').write(response.content)
+    path= f"{WORKING_DIR}/downloads/{name}"
+    with open(path, 'wb') as file:
+        total_length = int(response.headers.get('content-length'))
+        for chunk in progress.bar(response.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1): 
+            if chunk:
+                file.write(chunk)
+                file.flush()
+    print("download done")
 
 def check_input() -> int:
     version = int(input("> "))
     return version
-
-
 
 def main():
     check_path()
